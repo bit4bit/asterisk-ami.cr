@@ -21,7 +21,7 @@ require "asterisk-ami"
 ```
 
 ```crystal
-conn = Asterisk::Inbound.new("localhost", 5038, "demo", "demo")
+conn = Asterisk::Ami::Inbound.new("localhost", 5038, "demo", "demo")
 if !conn.connect(1.second)
   raise "fails authenticate to #{host}"
 end
