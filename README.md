@@ -17,10 +17,9 @@ TODO: Write a description here
 ## Usage
 
 ```crystal
+require "json"
 require "asterisk-ami"
-```
 
-```crystal
 conn = Asterisk::Ami::Inbound.new("localhost", 5038, "demo", "demo")
 if !conn.connect(1.second)
   raise "fails authenticate to #{host}"
@@ -49,7 +48,8 @@ loop do
     STDERR.puts "asterisk shutdown"
     exit 1
   end
-  yield event.message.to_json
+
+  puts event.message.to_json
 end
 ```
 
