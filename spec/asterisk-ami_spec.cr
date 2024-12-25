@@ -25,12 +25,12 @@ Context: inbound
 
   it "encode action" do
     action = Asterisk::Action.new(
-      "Login", UUID.v4().hexstring,
+      "Login", UUID.v4.hexstring,
       Hash{
         "Username" => "test",
         "AuthType" => "plain",
-        "Secret" => "test",
-        "Events" => "on"
+        "Secret"   => "test",
+        "Events"   => "on",
       },
       variables: Hash{"demo" => "demo"}
     )
