@@ -23,22 +23,16 @@ if !conn.connect(1.second)
   raise "fails authenticate to #{connection_uri}"
 end
 
-events = Channel(Asterisk::Event).new(1024*16)
-spawn name: "asterisk events reader" do
-  conn.pull_events do |event|
-    events.send(event)
+spawn do
+  conn.pull_events do |ev|
   end
-rescue ex
-  STDERR.puts ex.inspect_with_backtrace
-  exit 1
 end
 
-loop do
-  event = events.receive
-  if event.get("Event") == "Shutdown"
-    STDERR.puts "asterisk shutdown"
-    exit 1
-  end
+# example action and wait for response
+puts conn.request(Asterisk::Action.new(
+  "Ping",
+  UUID.v4.hexstring
+)
+).inspect
 
-  puts event.message.to_json
-end
+conn.close

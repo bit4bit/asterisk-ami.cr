@@ -7,6 +7,8 @@ authors:
 targets:
   dump:
     main: examples/dump.cr
+  action:
+    main: examples/action.cr
 
 crystal: '>= 1.13.3'
 

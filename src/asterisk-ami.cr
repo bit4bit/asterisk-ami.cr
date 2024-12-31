@@ -94,6 +94,10 @@ class Asterisk
       read_next_pdu().get("Response") == "Success"
     end
 
+    def close
+      conn.close
+    end
+
     def events
       Channel(Event).new(1024*16)
     end

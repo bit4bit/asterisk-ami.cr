@@ -9,7 +9,7 @@ TODO: Write a description here
    ```yaml
    dependencies:
      asterisk-ami:
-       github: your-github-user/asterisk-ami
+       github: bit4bit/asterisk-ami
    ```
 
 2. Run `shards install`
