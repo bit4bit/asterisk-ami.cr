@@ -37,12 +37,6 @@ resp = conn.request(
     UUID.v4.hexstring
   )
 )
-puts resp.inspect
+puts "ACTION RESPONSE: #{resp.inspect}"
 
-if resp.get("EventList", "") == "start"
-  events = conn.collect_events_while do |event|
-    event.get("EventList", "") != "Complete"
-  end
-  puts events.inspect
-end
 conn.close

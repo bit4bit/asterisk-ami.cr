@@ -106,7 +106,7 @@ class Asterisk
     alias EventWhileFn = Event -> Bool
     @wait_for_reply = Hash(String, EventReply).new
     @events_while = Hash(String, EventWhileFn).new
-    @events_while_reply = Hash(String, EventReply).new
+    @events_while_stop = Hash(String, Channel(Bool)).new
 
     def pull_events(&)
       loop do
@@ -119,37 +119,63 @@ class Asterisk
           end
         end
         @events_while.each do |key, check_fn|
-          if check_fn.call(pdu)
-            @events_while_reply[key].send(pdu)
-          else
-            @events_while_reply[key].close
+          if !check_fn.call(pdu)
+            @events_while_stop[key].send(true)
+            @events_while.delete(key)
           end
         end
         yield pdu
       end
     end
 
-    def request(action, timeout = 5.seconds) : Event
+    def request(action, timeout = 5.seconds) : Array(Event)
+      uid = UUID.v4.hexstring
+      as_list = false
+      events = [] of Event
+
+      @events_while_stop[uid] = Channel(Bool).new(1)
+      @events_while[uid] = event_while_fn do |ev|
+        if ev.get("EventList", "").downcase == "start"
+          as_list = true
+        end
+
+        if as_list && ev.get("ActionID", "") == action.action_id && ev.get("EventList", "").downcase == "complete"
+          events << ev
+          false
+        elsif !as_list && ev.get("ActionID", "") == action.action_id
+          events << ev
+          false
+        elsif ev.get("ActionID", "") == action.action_id
+          events << ev
+          true
+        else
+          true
+        end
+      end
+
       send(action.as_s)
-      wait_for_event_key("ActionID", action.action_id, timeout)
+
+      wait_events_while(uid, timeout)
+
+      events
     end
 
-    def collect_events_while(timeout = 5.seconds, &block : EventWhileFn)
-      uid = UUID.v4.hexstring
-      @events_while_reply[uid] = EventReply.new
-      @events_while[uid] = block
-      events = [] of Event
+    private def event_while_fn(&block : EventWhileFn) : EventWhileFn
+      block
+    end
+
+    private def wait_events_while(uid, timeout = 5.seconds)
       loop do
         select
-        when r = @events_while_reply[uid].receive
-          events << r
+        when r = @events_while_stop[uid].receive
+          @events_while_stop.delete(uid)
+          return
         when timeout timeout
           raise "timeout"
         end
       rescue Channel::ClosedError
-        @events_while_reply.delete(uid)
         @events_while.delete(uid)
-        return events
+        return
       end
     end
 
