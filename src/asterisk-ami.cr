@@ -104,7 +104,6 @@ class Asterisk
 
     alias EventReply = Channel(Asterisk::Event)
     alias EventWhileFn = Event -> Bool
-    @wait_for_reply = Hash(String, EventReply).new
     @events_while = Hash(String, EventWhileFn).new
     @events_while_stop = Hash(String, Channel(Bool)).new
 
@@ -112,12 +111,6 @@ class Asterisk
       loop do
         pdu = read_next_pdu()
 
-        @wait_for_reply.each do |key, reply|
-          if pdu.has?(key)
-            reply.send(pdu)
-            @wait_for_reply.delete(key)
-          end
-        end
         @events_while.each do |key, check_fn|
           if !check_fn.call(pdu)
             @events_while_stop[key].send(true)
@@ -176,17 +169,6 @@ class Asterisk
       rescue Channel::ClosedError
         @events_while.delete(uid)
         return
-      end
-    end
-
-    private def wait_for_event_key(key, value, timeout)
-      reply = EventReply.new
-      @wait_for_reply["#{key}: #{value}"] = reply
-      select
-      when r = reply.receive
-        r
-      when timeout timeout
-        raise "timeout"
       end
     end
 
