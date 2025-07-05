@@ -38,8 +38,8 @@ class Asterisk
       @fields[field]?
     end
 
-    def get(key : String)
-      @message.fetch(key, nil)
+    def get(key : String, default = nil)
+      @message.fetch(key, default)
     end
 
     def self.from(raw : String) : Event
@@ -103,9 +103,12 @@ class Asterisk
     end
 
     alias EventReply = Channel(Asterisk::Event)
+    alias EventWhileFn = Event -> Bool
     @wait_for_reply = Hash(String, EventReply).new
+    @events_while = Hash(String, EventWhileFn).new
+    @events_while_reply = Hash(String, EventReply).new
 
-    def pull_events
+    def pull_events(&)
       loop do
         pdu = read_next_pdu()
 
@@ -115,7 +118,13 @@ class Asterisk
             @wait_for_reply.delete(key)
           end
         end
-
+        @events_while.each do |key, check_fn|
+          if check_fn.call(pdu)
+            @events_while_reply[key].send(pdu)
+          else
+            @events_while_reply[key].close
+          end
+        end
         yield pdu
       end
     end
@@ -123,6 +132,25 @@ class Asterisk
     def request(action, timeout = 5.seconds) : Event
       send(action.as_s)
       wait_for_event_key("ActionID", action.action_id, timeout)
+    end
+
+    def collect_events_while(timeout = 5.seconds, &block : EventWhileFn)
+      uid = UUID.v4.hexstring
+      @events_while_reply[uid] = EventReply.new
+      @events_while[uid] = block
+      events = [] of Event
+      loop do
+        select
+        when r = @events_while_reply[uid].receive
+          events << r
+        when timeout timeout
+          raise "timeout"
+        end
+      rescue Channel::ClosedError
+        @events_while_reply.delete(uid)
+        @events_while.delete(uid)
+        return events
+      end
     end
 
     private def wait_for_event_key(key, value, timeout)

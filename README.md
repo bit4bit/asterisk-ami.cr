@@ -1,6 +1,6 @@
 # asterisk-ami
 
-TODO: Write a description here
+Crysta-Lang asterisk ami client.
 
 ## Installation
 

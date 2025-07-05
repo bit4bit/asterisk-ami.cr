@@ -5,9 +5,11 @@ require "json"
 require "../src/asterisk-ami"
 
 connection_uri = nil
+action = "Ping"
 
 OptionParser.parse do |parser|
   parser.on("-u URI", "--uri URI", "example: asterisk://demo:demo@localhost:5038/") { |val| connection_uri = URI.parse(val) }
+  parser.on("-a ACTION", "--action ACTION") { |val| action = val }
   parser.on("-h", "--help", "help") do
     puts parser
     exit
@@ -29,10 +31,18 @@ spawn do
 end
 
 # example action and wait for response
-puts conn.request(Asterisk::Action.new(
-  "Ping",
-  UUID.v4.hexstring
+resp = conn.request(
+  Asterisk::Action.new(
+    action,
+    UUID.v4.hexstring
+  )
 )
-).inspect
+puts resp.inspect
 
+if resp.get("EventList", "") == "start"
+  events = conn.collect_events_while do |event|
+    event.get("EventList", "") != "Complete"
+  end
+  puts events.inspect
+end
 conn.close
